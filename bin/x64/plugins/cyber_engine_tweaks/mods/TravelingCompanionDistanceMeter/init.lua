@@ -96,13 +96,41 @@ function travelingCompanionDistanceMeter:new()
                         self.output.topImmediateSpeed = self.output.immediateSpeed;
                     end
 
+                    -------------------------------------------
                     -- Manage the speed points and derived data
+                    -------------------------------------------
                     self.speedPoints.speedPos = self.speedPoints.speedPos + 1;
                     if(self.speedPoints.speedPos == self.speedPoints.speedSize + 1) then
-                        self.speedPoints.speedReady = true;
                         self.speedPoints.speedPos = 1;
+
+                        -- Once the speeds have become ready, compute the sum of all lengths
+                        -- But, do this only if the speeds aren't marked as ready yet
+                        if(not self.speedPoints.speedReady) then 
+                            self.speedPoints.speedReady = true;
+                            self.speedPoints.totalLength = 0;
+                            for i=1,self.speedPoints.speedSize do
+                                self.speedPoints.totalLength = self.speedPoints.totalLength + self.speedPoints.speedVals[i][5];
+                            end
+                        end
                     end
 
+                    -- Maintain the .totalTime
+                    local theOldestPos = self.speedPoints.speedPos + 1;
+                    if theOldestPos == self.speedPoints.speedSize + 1 then
+                        theOldestPos = 1;
+                    end
+                    self.speedPoints.totalTime = currTime - self.speedPoints.speedVals[theOldestPos][4];
+
+                    -- Maintain the .totalLength
+                    -- Remove the length from the point that will be overwritten
+                    -- and add length of the point that will be added in its place
+                    self.speedPoints.totalLength =
+                        self.speedPoints.totalLength
+                        - self.speedPoints.speedVals[self.speedPoints.speedPos][5]
+                        + length
+                    ;
+
+                    -- Write the new point
                     self.speedPoints.speedVals[self.speedPoints.speedPos][1] = currPos.x;
                     self.speedPoints.speedVals[self.speedPoints.speedPos][2] = currPos.y;
                     self.speedPoints.speedVals[self.speedPoints.speedPos][3] = currPos.z;
@@ -110,21 +138,10 @@ function travelingCompanionDistanceMeter:new()
                     self.speedPoints.speedVals[self.speedPoints.speedPos][5] = length;
                 end
 
-                -- Compute the complex speed if applicable
+                -- Compute the speed if it is ready
                 if(self.speedPoints.speedReady) then
-                    local theOldestPost = self.speedPoints.speedPos + 1;
-                    if theOldestPost == self.speedPoints.speedSize + 1 then
-                        theOldestPost = 1;
-                    end
-
-                    local totalLength = 0;
-                    local totalTime = self.speedPoints.speedVals[self.speedPoints.speedPos][4] - self.speedPoints.speedVals[theOldestPost][4];
-                    for i=1,self.speedPoints.speedSize do
-                        totalLength = totalLength + self.speedPoints.speedVals[i][5];
-                    end
-
                     -- Otherwise perform the computations
-                    self.output.speed = 3.6 * totalLength / totalTime;
+                    self.output.speed = 3.6 * self.speedPoints.totalLength / self.speedPoints.totalTime;
 
                     -- Update the top speed (where applicable)
                     if(self.output.topSpeed < self.output.speed) then
@@ -221,7 +238,7 @@ function travelingCompanionDistanceMeter:clear(alsoResetDisplayedState)
 
     -- Speed points
     self.speedPoints.speedPos = 0;
-    self.speedPoints.speedSize = 12;
+    self.speedPoints.speedSize = 25;
     self.speedPoints.speedVals = {};
     self.speedPoints.totalLength = 0;
     self.speedPoints.totalTime = 0;
