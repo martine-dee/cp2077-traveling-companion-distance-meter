@@ -104,6 +104,7 @@ function travelingCompanionDistanceMeter:new()
                     self.speedPoints.speedVals[self.speedPoints.speedPos][2] = currPos.y;
                     self.speedPoints.speedVals[self.speedPoints.speedPos][3] = currPos.z;
                     self.speedPoints.speedVals[self.speedPoints.speedPos][4] = currTime;
+                    self.speedPoints.speedVals[self.speedPoints.speedPos][5] = length;
                 end
 
                 -- Compute the complex speed if applicable
@@ -232,7 +233,7 @@ function travelingCompanionDistanceMeter:clear(alsoResetDisplayedState)
     self.speedPoints.speedSize = 15;
     self.speedPoints.speedVals = {};
     for i=1,self.speedPoints.speedSize do
-        self.speedPoints.speedVals[i] = {0, 0, 0, 0}; -- x, y, z, t
+        self.speedPoints.speedVals[i] = {0, 0, 0, 0, 0}; -- x, y, z, t, l
     end
     self.speedPoints.speedReady = false;
 end
