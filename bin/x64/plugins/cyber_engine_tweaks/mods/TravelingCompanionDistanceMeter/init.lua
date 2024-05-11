@@ -66,19 +66,82 @@ function travelingCompanionDistanceMeter:new()
         local currPos = Game.GetPlayer():GetWorldPosition();
         local currTime = os.clock(); -- Game.GetSimTime():ToFloat() too, but it's quite imprecise
 
-        -- Manage the speed points
+        -- Only deal with speed if the tool is displayed
         if(self:isDisplayed()) then
-            self:manageSpeedPoints(currPos, currTime);
         end
 
-        -- Only skip computations on the first frame
+        -- Only compute things if this isn't the first frame
         if(self.lastPos.timeTick ~= -1) then
-            -- Compute all derived values
-            self:computeDistanceAndImmediateSpeed(currPos, currTime);
+            -- Compute the length between the currPos and the lastPos
+            local length = math.sqrt(
+                (currPos.x - self.lastPos.x)^2
+                + (currPos.y - self.lastPos.y)^2
+                + (currPos.z - self.lastPos.z)^2
+            );
 
-            -- Compute the complex speed if applicable
-            if(self:isDisplayed() and self.speedPoints.speedReady) then
-                self:computeTrailingSpeed();
+            -- Actually, skip anything and everything if the length isn't sufficient
+            if length > 0.001 then
+                -- Update distance traveled
+                self.output.distanceTraveled = self.output.distanceTraveled + length;
+
+                -- Only compute the speed-related info if the tool is displayed
+                if(self:isDisplayed()) then
+                    local timeDiff = currTime - self.lastPos.timeTick;
+
+                    -- Update the immediate speed info, if displayed
+                    self.output.immediateSpeed = (length / timeDiff) * 3.6; -- metres per second converted to km/h
+                    if(self.output.topImmediateSpeed < self.output.immediateSpeed) then
+                        self.output.topImmediateSpeed = self.output.immediateSpeed;
+                    end
+
+                    -- Manage the speed points
+                    self.speedPoints.speedPos = self.speedPoints.speedPos + 1;
+                    if(self.speedPoints.speedPos == self.speedPoints.speedSize + 1) then
+                        self.speedPoints.speedReady = true;
+                        self.speedPoints.speedPos = 1;
+                    end
+                    self.speedPoints.speedVals[self.speedPoints.speedPos][1] = currPos.x;
+                    self.speedPoints.speedVals[self.speedPoints.speedPos][2] = currPos.y;
+                    self.speedPoints.speedVals[self.speedPoints.speedPos][3] = currPos.z;
+                    self.speedPoints.speedVals[self.speedPoints.speedPos][4] = currTime;
+                end
+
+                -- Compute the complex speed if applicable
+                if(self.speedPoints.speedReady) then
+                    -- Determine the location of the oldest data point
+                    local theOtherPos = self.speedPoints.speedPos + 1;
+                    if theOtherPos == self.speedPoints.speedSize + 1 then
+                        theOtherPos = 1;
+                    end
+
+                    -- Obtain the two data points
+                    local item1 = self.speedPoints.speedVals[theOtherPos];
+                    local item2 = self.speedPoints.speedVals[self.speedPoints.speedPos];
+
+                    -- Determine the square of the distance traveled between
+                    -- the two data points
+                    local spacebetweenraw =
+                        (item1[1] - item2[1])^2
+                        + (item1[2] - item2[2])^2
+                        + (item1[3] - item2[3])^2
+                    ;
+                    -- Determine the time traveled between the two data points
+                    local timebetween = item2[4] - item1[4];
+
+                    -- If the space difference is sufficiently small,
+                    -- label it as zero and wrap up.
+                    if(spacebetweenraw < 0.001) then
+                        self.output.speed = 0;
+                    else
+                        -- Otherwise perform the computations
+                        self.output.speed = 3.6 * math.sqrt(spacebetweenraw) / timebetween;
+
+                        -- Update the top speed (where applicable)
+                        if(self.output.topSpeed < self.output.speed) then
+                            self.output.topSpeed = self.output.speed;
+                        end
+                    end
+                end
             end
         end
 
@@ -119,94 +182,6 @@ function travelingCompanionDistanceMeter:showTheUI()
     ImGui.PopStyleColor();
     ImGui.PopStyleColor();
     ImGui.End();
-end
-
---------------------------------------------------------------------------------
--- Data collectors -------------------------------------------------------------
---------------------------------------------------------------------------------
-
--- Manages recording and rotating the speed points
-function travelingCompanionDistanceMeter:manageSpeedPoints(currPos, currTime)
-    self.speedPoints.speedPos = self.speedPoints.speedPos + 1;
-    if(self.speedPoints.speedPos == self.speedPoints.speedSize + 1) then
-        self.speedPoints.speedReady = true;
-        self.speedPoints.speedPos = 1;
-    end
-    self.speedPoints.speedVals[self.speedPoints.speedPos][1] = currPos.x;
-    self.speedPoints.speedVals[self.speedPoints.speedPos][2] = currPos.y;
-    self.speedPoints.speedVals[self.speedPoints.speedPos][3] = currPos.z;
-    self.speedPoints.speedVals[self.speedPoints.speedPos][4] = currTime;
-end
-
---------------------------------------------------------------------------------
--- Computations ----------------------------------------------------------------
---------------------------------------------------------------------------------
-
--- Computes distance and speed since the last recorded point
-function travelingCompanionDistanceMeter:computeDistanceAndImmediateSpeed(currPos, currTime)
-    local length = math.sqrt(
-        (currPos.x - self.lastPos.x)^2
-        + (currPos.y - self.lastPos.y)^2
-        + (currPos.z - self.lastPos.z)^2
-    );
-    local timeDiff = currTime - self.lastPos.timeTick;
-
-    if length > 0.001 then
-        -- Update distance traveled
-        self.output.distanceTraveled = self.output.distanceTraveled + length;
-
-        -- Update the speed info, if displayed
-        if self:isDisplayed() then
-            -- Update the speed
-            self.output.immediateSpeed = (length / timeDiff) * 3.6; -- metres per second converted to km/h
-            -- Update the top speed (where applicable)
-            if(self.output.topImmediateSpeed < self.output.immediateSpeed) then
-                self.output.topImmediateSpeed = self.output.immediateSpeed;
-            end
-        end
-    else
-        self.output.immediateSpeed = 0;
-    end
-end
-
--- Computes the trailing speed based on the recorded points
--- This can get as complex as it needs to be. But, for now,
--- it is taking the oldest and the latest known data points,
--- and approximating the information from them.
-function travelingCompanionDistanceMeter:computeTrailingSpeed()
-    -- Determine the location of the oldest data point
-    local theOtherPos = self.speedPoints.speedPos + 1;
-    if theOtherPos == self.speedPoints.speedSize + 1 then
-        theOtherPos = 1;
-    end
-
-    -- Obtain the two data points
-    local item1 = self.speedPoints.speedVals[theOtherPos];
-    local item2 = self.speedPoints.speedVals[self.speedPoints.speedPos];
-
-    -- Determine the square of the distance traveled between
-    -- the two data points
-    local spacebetweenraw =
-        (item1[1] - item2[1])^2
-        + (item1[2] - item2[2])^2
-        + (item1[3] - item2[3])^2
-    ;
-    -- Determine the time traveled between the two data points
-    local timebetween = item2[4] - item1[4];
-
-    -- If the space difference is sufficiently small,
-    -- label it as zero and wrap up.
-    if(spacebetweenraw < 0.001) then
-        self.output.speed = 0;
-    else
-        -- Otherwise perform the computations
-        self.output.speed = 3.6 * math.sqrt(spacebetweenraw) / timebetween;
-
-        -- Update the top speed (where applicable)
-        if(self.output.topSpeed < self.output.speed) then
-            self.output.topSpeed = self.output.speed;
-        end
-    end
 end
 
 --------------------------------------------------------------------------------
