@@ -71,21 +71,15 @@ function travelingCompanionDistanceMeter:new()
             self:manageSpeedPoints(currPos, currTime);
         end
 
-        -- Initialize the first 'previous' point. Do this only on the first frame.
-        if(self.lastPos.timeTick == -1) then
-            self.lastPos.x = currPos.x;
-            self.lastPos.y = currPos.y;
-            self.lastPos.z = currPos.z;
-            self.lastPos.timeTick = currTime;
-            return;
-        end
+        -- Only skip computations on the first frame
+        if(self.lastPos.timeTick ~= -1) then
+            -- Compute all derived values
+            self:computeDistanceAndImmediateSpeed(currPos, currTime);
 
-        -- Compute all derived values
-        self:computeDistanceAndImmediateSpeed(currPos, currTime);
-
-        -- Compute the complex speed if applicable
-        if(self:isDisplayed() and self.speedPoints.speedReady == 1) then
-            self:computeTrailingSpeed();
+            -- Compute the complex speed if applicable
+            if(self:isDisplayed() and self.speedPoints.speedReady) then
+                self:computeTrailingSpeed();
+            end
         end
 
         -- Update all values for the next iteration
@@ -135,7 +129,7 @@ end
 function travelingCompanionDistanceMeter:manageSpeedPoints(currPos, currTime)
     self.speedPoints.speedPos = self.speedPoints.speedPos + 1;
     if(self.speedPoints.speedPos == self.speedPoints.speedSize + 1) then
-        self.speedPoints.speedReady = 1;
+        self.speedPoints.speedReady = true;
         self.speedPoints.speedPos = 1;
     end
     self.speedPoints.speedVals[self.speedPoints.speedPos][1] = currPos.x;
@@ -157,15 +151,21 @@ function travelingCompanionDistanceMeter:computeDistanceAndImmediateSpeed(currPo
     );
     local timeDiff = currTime - self.lastPos.timeTick;
 
-    -- Update all computed output values
     if length > 0.001 then
+        -- Update distance traveled
         self.output.distanceTraveled = self.output.distanceTraveled + length;
-    end
-    self.output.immediateSpeed = (length / timeDiff) * 3.6; -- metres per second converted to km/h
 
-    -- Update the top speed (where applicable)
-    if(self.output.topImmediateSpeed < self.output.immediateSpeed) then
-        self.output.topImmediateSpeed = self.output.immediateSpeed
+        -- Update the speed info, if displayed
+        if self:isDisplayed() then
+            -- Update the speed
+            self.output.immediateSpeed = (length / timeDiff) * 3.6; -- metres per second converted to km/h
+            -- Update the top speed (where applicable)
+            if(self.output.topImmediateSpeed < self.output.immediateSpeed) then
+                self.output.topImmediateSpeed = self.output.immediateSpeed
+            end
+        end
+    else
+        self.output.immediateSpeed = 0;
     end
 end
 
@@ -259,7 +259,7 @@ function travelingCompanionDistanceMeter:clear(alsoResetDisplayedState)
     for i=1,self.speedPoints.speedSize do
         self.speedPoints.speedVals[i] = {0, 0, 0, 0}; -- x, y, z, t
     end
-    self.speedPoints.speedReady = 0;
+    self.speedPoints.speedReady = false;
 end
 
 -- Produce and return the object for CET to work with
