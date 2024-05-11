@@ -151,15 +151,21 @@ function travelingCompanionDistanceMeter:computeDistanceAndImmediateSpeed(currPo
     );
     local timeDiff = currTime - self.lastPos.timeTick;
 
-    -- Update all computed output values
     if length > 0.001 then
+        -- Update distance traveled
         self.output.distanceTraveled = self.output.distanceTraveled + length;
-    end
-    self.output.immediateSpeed = (length / timeDiff) * 3.6; -- metres per second converted to km/h
 
-    -- Update the top speed (where applicable)
-    if(self.output.topImmediateSpeed < self.output.immediateSpeed) then
-        self.output.topImmediateSpeed = self.output.immediateSpeed
+        -- Update the speed info, if displayed
+        if self:isDisplayed() then
+            -- Update the speed
+            self.output.immediateSpeed = (length / timeDiff) * 3.6; -- metres per second converted to km/h
+            -- Update the top speed (where applicable)
+            if(self.output.topImmediateSpeed < self.output.immediateSpeed) then
+                self.output.topImmediateSpeed = self.output.immediateSpeed
+            end
+        end
+    else
+        self.output.immediateSpeed = 0;
     end
 end
 
