@@ -73,10 +73,10 @@ function travelingCompanionDistanceMeter:new()
 
         -- Initialize the first 'previous' point. Do this only on the first frame.
         if(self.lastPos.timeTick == -1) then
-            self.lastPos.timeTick = currTime;
             self.lastPos.x = currPos.x;
             self.lastPos.y = currPos.y;
             self.lastPos.z = currPos.z;
+            self.lastPos.timeTick = currTime;
             return;
         end
 
@@ -89,10 +89,10 @@ function travelingCompanionDistanceMeter:new()
         end
 
         -- Update all values for the next iteration
-        self.lastPos.timeTick = currTime;
         self.lastPos.x = currPos.x;
         self.lastPos.y = currPos.y;
         self.lastPos.z = currPos.z;
+        self.lastPos.timeTick = currTime;
     end)
 
     return self;
@@ -150,12 +150,12 @@ end
 
 -- Computes distance and speed since the last recorded point
 function travelingCompanionDistanceMeter:computeDistanceAndImmediateSpeed(currPos, currTime)
-    local timeDiff = currTime - self.lastPos.timeTick;
     local length = math.sqrt(
         (currPos.x - self.lastPos.x)^2
         + (currPos.y - self.lastPos.y)^2
         + (currPos.z - self.lastPos.z)^2
     );
+    local timeDiff = currTime - self.lastPos.timeTick;
 
     -- Update all computed output values
     if length > 0.001 then
@@ -178,12 +178,13 @@ function travelingCompanionDistanceMeter:computeTrailingSpeed()
     local item1 = self.speedPoints.speedVals[theOtherPos];
     local item2 = self.speedPoints.speedVals[self.speedPoints.speedPos];
 
-    local timebetween = item2[4] - item1[4];
     local spacebetweenraw =
         (item1[1] - item2[1])^2
         + (item1[2] - item2[2])^2
         + (item1[3] - item2[3])^2
     ;
+    local timebetween = item2[4] - item1[4];
+
     if(spacebetweenraw < 0.001) then
         self.output.speed = 0;
     else
