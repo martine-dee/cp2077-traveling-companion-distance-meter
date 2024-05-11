@@ -11,6 +11,8 @@ travelingCompanionDistanceMeter = {
         speedSize,
         speedVals,
         speedReady,
+        totalLength,
+        totalTime,
     },
     state = {
         frameCounter,
@@ -94,12 +96,13 @@ function travelingCompanionDistanceMeter:new()
                         self.output.topImmediateSpeed = self.output.immediateSpeed;
                     end
 
-                    -- Manage the speed points
+                    -- Manage the speed points and derived data
                     self.speedPoints.speedPos = self.speedPoints.speedPos + 1;
                     if(self.speedPoints.speedPos == self.speedPoints.speedSize + 1) then
                         self.speedPoints.speedReady = true;
                         self.speedPoints.speedPos = 1;
                     end
+
                     self.speedPoints.speedVals[self.speedPoints.speedPos][1] = currPos.x;
                     self.speedPoints.speedVals[self.speedPoints.speedPos][2] = currPos.y;
                     self.speedPoints.speedVals[self.speedPoints.speedPos][3] = currPos.z;
@@ -109,40 +112,28 @@ function travelingCompanionDistanceMeter:new()
 
                 -- Compute the complex speed if applicable
                 if(self.speedPoints.speedReady) then
-                    -- Determine the location of the oldest data point
-                    local theOtherPos = self.speedPoints.speedPos + 1;
-                    if theOtherPos == self.speedPoints.speedSize + 1 then
-                        theOtherPos = 1;
+                    local theOldestPost = self.speedPoints.speedPos + 1;
+                    if theOldestPost == self.speedPoints.speedSize + 1 then
+                        theOldestPost = 1;
                     end
 
-                    -- Obtain the two data points
-                    local item1 = self.speedPoints.speedVals[theOtherPos];
-                    local item2 = self.speedPoints.speedVals[self.speedPoints.speedPos];
+                    local totalLength = 0;
+                    local totalTime = self.speedPoints.speedVals[self.speedPoints.speedPos][4] - self.speedPoints.speedVals[theOldestPost][4];
+                    for i=1,self.speedPoints.speedSize do
+                        totalLength = totalLength + self.speedPoints.speedVals[i][5];
+                    end
 
-                    -- Determine the square of the distance traveled between
-                    -- the two data points
-                    local spacebetweenraw =
-                        (item1[1] - item2[1])^2
-                        + (item1[2] - item2[2])^2
-                        + (item1[3] - item2[3])^2
-                    ;
-                    -- Determine the time traveled between the two data points
-                    local timebetween = item2[4] - item1[4];
+                    -- Otherwise perform the computations
+                    self.output.speed = 3.6 * totalLength / totalTime;
 
-                    -- If the space difference is sufficiently small,
-                    -- label it as zero and wrap up.
-                    if(spacebetweenraw < 0.001) then
-                        self.output.speed = 0;
-                    else
-                        -- Otherwise perform the computations
-                        self.output.speed = 3.6 * math.sqrt(spacebetweenraw) / timebetween;
-
-                        -- Update the top speed (where applicable)
-                        if(self.output.topSpeed < self.output.speed) then
-                            self.output.topSpeed = self.output.speed;
-                        end
+                    -- Update the top speed (where applicable)
+                    if(self.output.topSpeed < self.output.speed) then
+                        self.output.topSpeed = self.output.speed;
                     end
                 end
+            else
+                self.output.speed = 0;
+                self.output.immediateSpeed = 0;
             end
         end
 
@@ -230,8 +221,10 @@ function travelingCompanionDistanceMeter:clear(alsoResetDisplayedState)
 
     -- Speed points
     self.speedPoints.speedPos = 0;
-    self.speedPoints.speedSize = 15;
+    self.speedPoints.speedSize = 12;
     self.speedPoints.speedVals = {};
+    self.speedPoints.totalLength = 0;
+    self.speedPoints.totalTime = 0;
     for i=1,self.speedPoints.speedSize do
         self.speedPoints.speedVals[i] = {0, 0, 0, 0, 0}; -- x, y, z, t, l
     end
