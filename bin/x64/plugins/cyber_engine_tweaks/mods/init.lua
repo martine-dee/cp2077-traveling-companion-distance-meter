@@ -162,33 +162,47 @@ function travelingCompanionDistanceMeter:computeDistanceAndImmediateSpeed(currPo
         self.output.distanceTraveled = self.output.distanceTraveled + length;
     end
     self.output.immediateSpeed = (length / timeDiff) * 3.6; -- metres per second converted to km/h
+
+    -- Update the top speed (where applicable)
     if(self.output.topImmediateSpeed < self.output.immediateSpeed) then
         self.output.topImmediateSpeed = self.output.immediateSpeed
     end
 end
 
 -- Computes the trailing speed based on the recorded points
--- This can get as complex as it needs to be
+-- This can get as complex as it needs to be. But, for now,
+-- it is taking the oldest and the latest known data points,
+-- and approximating the information from them.
 function travelingCompanionDistanceMeter:computeTrailingSpeed()
+    -- Determine the location of the oldest data point
     local theOtherPos = self.speedPoints.speedPos + 1;
     if theOtherPos == self.speedPoints.speedSize + 1 then
         theOtherPos = 1;
     end
 
+    -- Obtain the two data points
     local item1 = self.speedPoints.speedVals[theOtherPos];
     local item2 = self.speedPoints.speedVals[self.speedPoints.speedPos];
 
+    -- Determine the square of the distance traveled between
+    -- the two data points
     local spacebetweenraw =
         (item1[1] - item2[1])^2
         + (item1[2] - item2[2])^2
         + (item1[3] - item2[3])^2
     ;
+    -- Determine the time traveled between the two data points
     local timebetween = item2[4] - item1[4];
 
+    -- If the space difference is sufficiently small,
+    -- label it as zero and wrap up.
     if(spacebetweenraw < 0.001) then
         self.output.speed = 0;
     else
+        -- Otherwise perform the computations
         self.output.speed = 3.6 * math.sqrt(spacebetweenraw) / timebetween;
+
+        -- Update the top speed (where applicable)
         if(self.output.topSpeed < self.output.speed) then
             self.output.topSpeed = self.output.speed;
         end
