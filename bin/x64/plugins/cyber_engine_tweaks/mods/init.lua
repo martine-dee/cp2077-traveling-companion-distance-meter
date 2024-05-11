@@ -71,21 +71,15 @@ function travelingCompanionDistanceMeter:new()
             self:manageSpeedPoints(currPos, currTime);
         end
 
-        -- Initialize the first 'previous' point. Do this only on the first frame.
-        if(self.lastPos.timeTick == -1) then
-            self.lastPos.x = currPos.x;
-            self.lastPos.y = currPos.y;
-            self.lastPos.z = currPos.z;
-            self.lastPos.timeTick = currTime;
-            return;
-        end
+        -- Only skip computations on the first frame
+        if(self.lastPos.timeTick ~= -1) then
+            -- Compute all derived values
+            self:computeDistanceAndImmediateSpeed(currPos, currTime);
 
-        -- Compute all derived values
-        self:computeDistanceAndImmediateSpeed(currPos, currTime);
-
-        -- Compute the complex speed if applicable
-        if(self:isDisplayed() and self.speedPoints.speedReady) then
-            self:computeTrailingSpeed();
+            -- Compute the complex speed if applicable
+            if(self:isDisplayed() and self.speedPoints.speedReady) then
+                self:computeTrailingSpeed();
+            end
         end
 
         -- Update all values for the next iteration
