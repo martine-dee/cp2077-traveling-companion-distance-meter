@@ -20,8 +20,6 @@ travelingCompanionDistanceMeter = {
     },
 	output = {
 		distanceTraveled,
-		immediateSpeed,
-        topImmediateSpeed,
         speed,
         topSpeed,
 	},
@@ -90,12 +88,6 @@ function travelingCompanionDistanceMeter:new()
                 if(self:isDisplayed()) then
                     local timeDiff = currTime - self.lastPos.timeTick;
 
-                    -- Update the immediate speed info, if displayed
-                    self.output.immediateSpeed = (length / timeDiff) * 3.6; -- metres per second converted to km/h
-                    if(self.output.topImmediateSpeed < self.output.immediateSpeed) then
-                        self.output.topImmediateSpeed = self.output.immediateSpeed;
-                    end
-
                     -------------------------------------------
                     -- Manage the speed points and derived data
                     -------------------------------------------
@@ -150,7 +142,6 @@ function travelingCompanionDistanceMeter:new()
                 end
             else
                 self.output.speed = 0;
-                self.output.immediateSpeed = 0;
             end
         end
 
@@ -171,7 +162,7 @@ end
 -- Displays the travelingCompanionDistanceMeter UI
 function travelingCompanionDistanceMeter:showTheUI()
     ImGui.SetNextWindowPos(50, 50, ImGuiCond.Always);
-    ImGui.SetNextWindowSize(380, 130, ImGuiCond.Always);
+    ImGui.SetNextWindowSize(380, 105, ImGuiCond.Always);
     ImGui.PushStyleColor(ImGuiCol.Text, 0xFF00DDFF); -- 0xAABBGGRR
     ImGui.PushStyleColor(ImGuiCol.WindowBg, 0x99000000);
     ImGui.PushStyleColor(ImGuiCol.Border, 0x00000000);        
@@ -180,8 +171,7 @@ function travelingCompanionDistanceMeter:showTheUI()
         ImGui.SetWindowFontScale(1.15);
         ImGui.Text("Traveled: " .. string.format(
             "%.5f", self.output.distanceTraveled) .. " m\n"
-            .. string.format("% 5.0f km/h (immediate); top=%.2f km/h\n", self.output.immediateSpeed, self.output.topImmediateSpeed)
-            .. string.format("% 5.0f km/h (trailing); top=%.2f km/h\n", self.output.speed, self.output.topSpeed)
+            .. string.format("Speed: % 5.0f km/h; top=%.2f km/h\n", self.output.speed, self.output.topSpeed)
             .. string.format("x=%.2f y=%.2f z=%.2f t=%.3f", self.lastPos.x, self.lastPos.y, self.lastPos.z, self.lastPos.timeTick)
         );
         ImGui.SetWindowFontScale(1.0);
@@ -222,8 +212,6 @@ end
 -- :isDisplayed() state of the window
 function travelingCompanionDistanceMeter:clear(alsoResetDisplayedState)
     self.output.distanceTraveled = 0;
-    self.output.immediateSpeed = 0;
-    self.output.topImmediateSpeed = 0;
     self.output.speed = 0;
     self.output.topSpeed = 0;
     self.state.frameCounter = 0;
