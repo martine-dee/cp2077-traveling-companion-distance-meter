@@ -84,7 +84,7 @@ function travelingCompanionDistanceMeter:new()
         self:computeDistanceAndImmediateSpeed(currPos, currTime);
 
         -- Compute the complex speed if applicable
-        if(self:isDisplayed() and self.speedPoints.speedReady == 1) then
+        if(self:isDisplayed() and self.speedPoints.speedReady) then
             self:computeTrailingSpeed();
         end
 
@@ -135,7 +135,7 @@ end
 function travelingCompanionDistanceMeter:manageSpeedPoints(currPos, currTime)
     self.speedPoints.speedPos = self.speedPoints.speedPos + 1;
     if(self.speedPoints.speedPos == self.speedPoints.speedSize + 1) then
-        self.speedPoints.speedReady = 1;
+        self.speedPoints.speedReady = true;
         self.speedPoints.speedPos = 1;
     end
     self.speedPoints.speedVals[self.speedPoints.speedPos][1] = currPos.x;
@@ -259,7 +259,7 @@ function travelingCompanionDistanceMeter:clear(alsoResetDisplayedState)
     for i=1,self.speedPoints.speedSize do
         self.speedPoints.speedVals[i] = {0, 0, 0, 0}; -- x, y, z, t
     end
-    self.speedPoints.speedReady = 0;
+    self.speedPoints.speedReady = false;
 end
 
 -- Produce and return the object for CET to work with
