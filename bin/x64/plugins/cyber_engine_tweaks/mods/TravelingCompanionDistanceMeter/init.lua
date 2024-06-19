@@ -17,6 +17,7 @@ travelingCompanionDistanceMeter = {
     state = {
         frameCounter,
         displayed,
+        uiScale,
     },
 	output = {
 		distanceTraveled,
@@ -56,6 +57,10 @@ function travelingCompanionDistanceMeter:new()
 
         -- Literally the frame counter, as long as the notInGame func is false
         self.state.frameCounter = self.state.frameCounter + 1;
+
+        if(self.state.frameCounter % 79 == 0) then
+            self:refreshUIScale();
+        end
 
         -- Do the computation only on every few frames in
         if(self.state.frameCounter % 2 ~= 0) then
@@ -159,10 +164,21 @@ end
 -- UI --------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
+function travelingCompanionDistanceMeter:refreshUIScale()
+    local displayWidth, displayHeight = GetDisplayResolution();
+    self.state.uiScale = displayHeight / 1080.0;
+end
+
 -- Displays the travelingCompanionDistanceMeter UI
 function travelingCompanionDistanceMeter:showTheUI()
+    local scale = self.state.uiScale;
+
+    if scale < 0 then
+        return; -- Do not draw if we don't know the scale
+    end
+
     ImGui.SetNextWindowPos(50, 50, ImGuiCond.Always);
-    ImGui.SetNextWindowSize(380, 105, ImGuiCond.Always);
+    ImGui.SetNextWindowSize(380*scale, 105*scale, ImGuiCond.Always);
     ImGui.PushStyleColor(ImGuiCol.Text, 0xFF00DDFF); -- 0xAABBGGRR
     ImGui.PushStyleColor(ImGuiCol.WindowBg, 0x99000000);
     ImGui.PushStyleColor(ImGuiCol.Border, 0x00000000);        
@@ -218,6 +234,8 @@ function travelingCompanionDistanceMeter:clear(alsoResetDisplayedState)
     if(alsoResetDisplayedState) then
         self.state.displayed = false; -- The companion isn't displayed by default
     end
+
+    self:refreshUIScale(); -- Determine self.state.uiScale
 
     self.lastPos.timeTick = -1.0;
     self.lastPos.x = 0;
