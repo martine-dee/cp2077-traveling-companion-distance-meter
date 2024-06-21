@@ -19,12 +19,21 @@ travelingCompanionDistanceMeter = {
         displayed,
         uiScale,
     },
+    constants = {
+        std_gravity_pos = 9.80665, -- m/s^2; inverted sign
+        display_update_interval = 0.15, -- seconds
+    },
 	output = {
 		distanceTraveled,
         speed,
         topSpeed,
         displayedSpeed,
         displayedSpeedTime,
+        accel,              -- Acceleration vector (xyz Gs)
+        accelint,           -- Acceleration intensity (Gs)
+        displayedAccel,     -- The displayed acceleration intensity (Gs)
+        displayedAccelTime, -- The last time displayed acceleration was updated
+        accelMax,           -- The maximal recorded acceleration intensity (Gs)
 	},
 };
 
@@ -137,9 +146,9 @@ function travelingCompanionDistanceMeter:new()
                     self.speedPoints.speedVals[self.speedPoints.speedPos][5] = length;
                 end
 
-                -- Compute the speed if it is ready
+                -- Compute the values derived from speed points if all of them are ready
                 if(self.speedPoints.speedReady) then
-                    -- Otherwise perform the computations
+                    -- Compute the output speed
                     self.output.speed = 3.6 * self.speedPoints.totalLength / self.speedPoints.totalTime;
 
                     -- Update the top speed (where applicable)
@@ -148,14 +157,98 @@ function travelingCompanionDistanceMeter:new()
                     end
 
                     -- Update the displayed speed
-                    if((self.output.displayedSpeedTime == -1) or (currTime - self.output.displayedSpeedTime) > 0.15) then
+                    if((self.output.displayedSpeedTime == -1) or (currTime - self.output.displayedSpeedTime) > self.constants.display_update_interval) then
                         self.output.displayedSpeed = self.output.speed;
                         self.output.displayedSpeedTime = currTime;
                     end
+
+                    -- Update acceleration's internal and displayed values
+                    -- ... if TCDM is displayed.
+                    if(self:isDisplayed()) then
+                        -- The index of the oldest data point
+                        local v1pos = self.speedPoints.speedPos+1;
+                        if v1pos > self.speedPoints.speedSize then
+                            v1pos = 1;
+                        end
+
+                        -- The index of the newest data point
+                        local v2pos = self.speedPoints.speedPos;
+
+                        -- The time difference to fulfill $vvec
+                        local tdiff = self.speedPoints.speedVals[v2pos][4] - self.speedPoints.speedVals[v1pos][4];
+
+                        -- Record the movement vector and $tdiff for later use
+                        self.speedPoints.speedVals[self.speedPoints.speedPos][7] = {
+                            -- The space vector from the oldest to the newest data point
+                            {
+                                self.speedPoints.speedVals[v2pos][1] - self.speedPoints.speedVals[v1pos][1],
+                                self.speedPoints.speedVals[v2pos][2] - self.speedPoints.speedVals[v1pos][2],
+                                self.speedPoints.speedVals[v2pos][3] - self.speedPoints.speedVals[v1pos][3],
+                            },
+                            tdiff,
+                            {0, 0, 0}, -- Slot for acceleration vector, in m/s^2
+                            0,         -- Slot for acceleration intensity, in m/s^2
+                        };
+
+                        -- If the oldest data point has been initialized, then computation
+                        -- of acceleration values can begin. To check this, $tdiff of the
+                        -- oldest point in the dataset is used. It ought to be greater
+                        -- than zero.
+                        if(self.speedPoints.speedVals[v1pos][7][2] > 0) then
+                            -- The oldest data point (speed diff vs time)
+                            local vvec1 = self.speedPoints.speedVals[v1pos][7][1];
+                            local t1 = self.speedPoints.speedVals[v1pos][7][2];
+
+                            -- The newest data point (speed diff vs time)
+                            local vvec2 = self.speedPoints.speedVals[v2pos][7][1];
+                            local t2 = self.speedPoints.speedVals[v2pos][7][2];
+
+                            -- The time difference between the two said data points
+                            local tdiff = self.speedPoints.speedVals[v2pos][4] - self.speedPoints.speedVals[v1pos][4];
+
+                            -- The acceleration vector,
+                            -- i.e. the speed difference between the two data points, per time
+                            local vaccel = {
+                                (vvec2[1]/t2 - vvec1[1]/t1) / tdiff,
+                                (vvec2[2]/t2 - vvec1[2]/t1) / tdiff,
+                                (vvec2[3]/t2 - vvec1[3]/t1) / tdiff + self.constants.std_gravity_pos,
+                            };
+
+                            -- Write the acceleration vector and its intensity to the current data point
+                            self.speedPoints.speedVals[v2pos][7][3] = vaccel;
+                            self.speedPoints.speedVals[v2pos][7][4] = math.sqrt(vaccel[1]^2 + vaccel[2]^2 + vaccel[3]^2);
+
+                            -- Write the acceleration vector and intensity (in Gs)
+                            -- into the self.output section
+                            self.output.accel[1] = vaccel[1] / self.constants.std_gravity_pos;
+                            self.output.accel[2] = vaccel[2] / self.constants.std_gravity_pos;
+                            self.output.accel[3] = vaccel[3] / self.constants.std_gravity_pos;
+                            self.output.accelint = self.speedPoints.speedVals[v2pos][7][4] / self.constants.std_gravity_pos;
+
+                            -- Update the displayed acceleration at regular intervals
+                            if((self.output.displayedAccelTime == -1)
+                                or ((currTime - self.output.displayedAccelTime) > self.constants.display_update_interval)
+                            ) then
+                                self.output.displayedAccel = self.output.accelint;
+                                self.output.displayedAccelTime = currTime;
+                            end
+
+                            -- Maintain the value of maximum recorded acceleration
+                            if(self.output.accelint > self.output.accelMax) then
+                                self.output.accelMax = self.output.accelint;
+                            end
+                        end
+                    end
                 end
             else
+                -- Set all for the standing still values
                 self.output.speed = 0;
                 self.output.displayedSpeed = 0;
+                self.output.displayedAccel = 1;
+                self.output.accelint = 0;
+                self.output.accel[1] = 0;
+                self.output.accel[2] = 0;
+                self.output.accel[3] = -1;
             end
         end
 
@@ -187,7 +280,7 @@ function travelingCompanionDistanceMeter:showTheUI()
     end
 
     ImGui.SetNextWindowPos(50, 50, ImGuiCond.FirstUseEver);
-    ImGui.SetNextWindowSize(380*scale, 105*scale, ImGuiCond.Appearing);
+    ImGui.SetNextWindowSize(380*scale, 125*scale, ImGuiCond.Appearing);
     ImGui.PushStyleColor(ImGuiCol.Text, 0xFF00DDFF); -- 0xAABBGGRR
     ImGui.PushStyleColor(ImGuiCol.WindowBg, 0x99000000);
     ImGui.PushStyleColor(ImGuiCol.Border, 0x00000000);        
@@ -197,7 +290,8 @@ function travelingCompanionDistanceMeter:showTheUI()
         ImGui.Text("Traveled: " .. string.format(
             "%.5f", self.output.distanceTraveled) .. " m\n"
             .. string.format("Speed: % 5.0f km/h; top=%.2f km/h\n", self.output.displayedSpeed, self.output.topSpeed)
-            .. string.format("x=%.2f y=%.2f z=%.2f t=%.3f", self.lastPos.x, self.lastPos.y, self.lastPos.z, self.lastPos.timeTick)
+            .. string.format("x=%.2f y=%.2f z=%.2f t=%.3f\n", self.lastPos.x, self.lastPos.y, self.lastPos.z, self.lastPos.timeTick)
+            .. string.format("accel= % 4.1f G (max=%.1f G)", self.output.displayedAccel, self.output.accelMax)
         );
         ImGui.SetWindowFontScale(1.0);
     end
@@ -236,11 +330,21 @@ end
 -- Clear the object; the only option that may avoid this is the
 -- :isDisplayed() state of the window
 function travelingCompanionDistanceMeter:clear(alsoResetDisplayedState)
+    self.speedPoints.speedReady = false;
+
     self.output.distanceTraveled = 0;
     self.output.speed = 0;
     self.output.topSpeed = 0;
     self.output.displayedSpeed = 0;
     self.output.displayedSpeedTime = -1;
+
+    -- Acceleration
+    self.output.accel = {0, 0, -1};
+    self.output.accelint = 1;
+    self.output.displayedAccel = 1;
+    self.output.displayedAccelTime = -1;
+    self.output.accelMax = 1;
+
     self.state.frameCounter = 0;
     if(alsoResetDisplayedState) then
         self.state.displayed = false; -- The companion isn't displayed by default
@@ -260,9 +364,21 @@ function travelingCompanionDistanceMeter:clear(alsoResetDisplayedState)
     self.speedPoints.totalLength = 0;
     self.speedPoints.totalTime = 0;
     for i=1,self.speedPoints.speedSize do
-        self.speedPoints.speedVals[i] = {0, 0, 0, 0, 0}; -- x, y, z, t, l
+        self.speedPoints.speedVals[i] = {
+            0, -- x
+            0, -- y
+            0, -- z
+            0, -- t
+            0, -- l (path length)
+            0, -- v(speed)
+            {  -- acceleration info
+                {0, 0, 0}, -- movement vector across all data points, m
+                0,         -- time diff for the movement vector, s
+                {0, 0, 0}, -- current acceleration vector, 3x m/s^2
+                0,         -- current acceleration intensity, m/s^2
+            },
+        };
     end
-    self.speedPoints.speedReady = false;
 end
 
 -- Produce and return the object for CET to work with
