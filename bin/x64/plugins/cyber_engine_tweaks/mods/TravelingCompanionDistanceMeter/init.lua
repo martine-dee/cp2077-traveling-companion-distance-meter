@@ -186,8 +186,8 @@ function travelingCompanionDistanceMeter:showTheUI()
         return; -- Do not draw if we don't know the scale
     end
 
-    ImGui.SetNextWindowPos(50, 50, ImGuiCond.Always);
-    ImGui.SetNextWindowSize(380*scale, 105*scale, ImGuiCond.Always);
+    ImGui.SetNextWindowPos(50, 50, ImGuiCond.FirstUseEver);
+    ImGui.SetNextWindowSize(380*scale, 105*scale, ImGuiCond.Appearing);
     ImGui.PushStyleColor(ImGuiCol.Text, 0xFF00DDFF); -- 0xAABBGGRR
     ImGui.PushStyleColor(ImGuiCol.WindowBg, 0x99000000);
     ImGui.PushStyleColor(ImGuiCol.Border, 0x00000000);        
