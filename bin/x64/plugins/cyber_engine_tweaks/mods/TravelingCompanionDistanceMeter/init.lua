@@ -23,6 +23,8 @@ travelingCompanionDistanceMeter = {
 		distanceTraveled,
         speed,
         topSpeed,
+        displayedSpeed,
+        displayedSpeedTime,
 	},
 };
 
@@ -144,9 +146,16 @@ function travelingCompanionDistanceMeter:new()
                     if(self.output.topSpeed < self.output.speed) then
                         self.output.topSpeed = self.output.speed;
                     end
+
+                    -- Update the displayed speed
+                    if((self.output.displayedSpeedTime == -1) or (currTime - self.output.displayedSpeedTime) > 0.15) then
+                        self.output.displayedSpeed = self.output.speed;
+                        self.output.displayedSpeedTime = currTime;
+                    end
                 end
             else
                 self.output.speed = 0;
+                self.output.displayedSpeed = 0;
             end
         end
 
@@ -177,8 +186,8 @@ function travelingCompanionDistanceMeter:showTheUI()
         return; -- Do not draw if we don't know the scale
     end
 
-    ImGui.SetNextWindowPos(50, 50, ImGuiCond.Always);
-    ImGui.SetNextWindowSize(380*scale, 105*scale, ImGuiCond.Always);
+    ImGui.SetNextWindowPos(50, 50, ImGuiCond.FirstUseEver);
+    ImGui.SetNextWindowSize(380*scale, 105*scale, ImGuiCond.Appearing);
     ImGui.PushStyleColor(ImGuiCol.Text, 0xFF00DDFF); -- 0xAABBGGRR
     ImGui.PushStyleColor(ImGuiCol.WindowBg, 0x99000000);
     ImGui.PushStyleColor(ImGuiCol.Border, 0x00000000);        
@@ -187,7 +196,7 @@ function travelingCompanionDistanceMeter:showTheUI()
         ImGui.SetWindowFontScale(1.15);
         ImGui.Text("Traveled: " .. string.format(
             "%.5f", self.output.distanceTraveled) .. " m\n"
-            .. string.format("Speed: % 5.0f km/h; top=%.2f km/h\n", self.output.speed, self.output.topSpeed)
+            .. string.format("Speed: % 5.0f km/h; top=%.2f km/h\n", self.output.displayedSpeed, self.output.topSpeed)
             .. string.format("x=%.2f y=%.2f z=%.2f t=%.3f", self.lastPos.x, self.lastPos.y, self.lastPos.z, self.lastPos.timeTick)
         );
         ImGui.SetWindowFontScale(1.0);
@@ -230,6 +239,8 @@ function travelingCompanionDistanceMeter:clear(alsoResetDisplayedState)
     self.output.distanceTraveled = 0;
     self.output.speed = 0;
     self.output.topSpeed = 0;
+    self.output.displayedSpeed = 0;
+    self.output.displayedSpeedTime = -1;
     self.state.frameCounter = 0;
     if(alsoResetDisplayedState) then
         self.state.displayed = false; -- The companion isn't displayed by default
