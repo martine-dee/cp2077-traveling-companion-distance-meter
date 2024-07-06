@@ -241,6 +241,8 @@ function travelingCompanionDistanceMeter:new()
                 self.output.accel[1] = 0;
                 self.output.accel[2] = 0;
                 self.output.accel[3] = -1;
+
+                self:resetSpeedPoints();
             end
         end
 
@@ -350,6 +352,10 @@ function travelingCompanionDistanceMeter:clear(alsoResetDisplayedState)
     self.lastPos.z = 0;
 
     -- Speed points
+    self:resetSpeedPoints();
+end
+
+function travelingCompanionDistanceMeter:resetSpeedPoints()
     self.speedPoints.speedPos = 0;
     self.speedPoints.speedSize = 25;
     self.speedPoints.speedVals = {};
