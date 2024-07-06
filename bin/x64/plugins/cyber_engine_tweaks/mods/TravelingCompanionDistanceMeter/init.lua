@@ -291,7 +291,7 @@ function travelingCompanionDistanceMeter:showTheUI()
             "%.5f", self.output.distanceTraveled) .. " m\n"
             .. string.format("Speed: % 5.0f km/h; top=%.2f km/h\n", self.output.displayedSpeed, self.output.topSpeed)
             .. string.format("x=%.2f y=%.2f z=%.2f t=%.3f\n", self.lastPos.x, self.lastPos.y, self.lastPos.z, self.lastPos.timeTick)
-            .. string.format("accel= % 4.1f G (max=%.1f G)", self.output.displayedAccel, self.output.accelMax)
+            .. string.format("accel= % 4.2f G (max=%.2f G)", self.output.displayedAccel, self.output.accelMax)
         );
         ImGui.SetWindowFontScale(1.0);
     end
