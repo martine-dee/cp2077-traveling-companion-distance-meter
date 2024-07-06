@@ -82,10 +82,6 @@ function travelingCompanionDistanceMeter:new()
         local currPos = Game.GetPlayer():GetWorldPosition();
         local currTime = os.clock(); -- Game.GetSimTime():ToFloat() too, but it's quite imprecise
 
-        -- Only deal with speed if the tool is displayed
-        if(self:isDisplayed()) then
-        end
-
         -- Only compute things if this isn't the first frame
         if(self.lastPos.timeTick ~= -1) then
             -- Compute the length between the currPos and the lastPos
