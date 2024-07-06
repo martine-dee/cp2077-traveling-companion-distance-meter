@@ -34,6 +34,16 @@ travelingCompanionDistanceMeter = {
         displayedAccel,     -- The displayed acceleration intensity (Gs)
         displayedAccelTime, -- The last time displayed acceleration was updated
         accelMax,           -- The maximal recorded acceleration intensity (Gs)
+
+        accelX,
+        accelY,
+        accelZ,
+        accelXMax,
+        accelYMax,
+        accelZMax,
+        accelXMin,
+        accelYMin,
+        accelZMin,
 	},
 };
 
@@ -75,7 +85,8 @@ function travelingCompanionDistanceMeter:new()
         end
 
         -- Collect all the external data
-        local currPos = Game.GetPlayer():GetWorldPosition();
+        local player = Game.GetPlayer();
+        local currPos = player:GetWorldPosition();
         local currTime = os.clock(); -- Game.GetSimTime():ToFloat() too, but it's quite imprecise
 
         -- Only compute things if this isn't the first frame
@@ -223,6 +234,8 @@ function travelingCompanionDistanceMeter:new()
                             ) then
                                 self.output.displayedAccel = self.output.accelint;
                                 self.output.displayedAccelTime = currTime;
+
+                                self:computeAccelComponents(vaccel);
                             end
 
                             -- Maintain the value of maximum recorded acceleration
@@ -242,6 +255,7 @@ function travelingCompanionDistanceMeter:new()
                 self.output.accel[2] = 0;
                 self.output.accel[3] = -1;
 
+                self:computeAccelComponents({0, 0, self.constants.std_gravity_pos});
                 self:resetSpeedPoints();
             end
         end
@@ -254,6 +268,43 @@ function travelingCompanionDistanceMeter:new()
     end)
 
     return self;
+end
+
+function travelingCompanionDistanceMeter:computeAccelComponents(vaccel)
+    local currTr = Game.GetPlayer():GetWorldTransform();
+    local playerX = currTr:GetForward();
+    local playerY = currTr:GetRight();
+    playerY.x = -playerY.x;
+    playerY.y = -playerY.y;
+    playerY.z = -playerY.z;
+    local playerZ = currTr:GetUp();
+
+    local aX = (playerX.x * vaccel[1] + playerX.y * vaccel[2] + playerX.z * vaccel[3]) / self.constants.std_gravity_pos;
+    local aY = (playerY.x * vaccel[1] + playerY.y * vaccel[2] + playerY.z * vaccel[3]) / self.constants.std_gravity_pos;
+    local aZ = (playerZ.x * vaccel[1] + playerZ.y * vaccel[2] + playerZ.z * vaccel[3]) / self.constants.std_gravity_pos;
+
+    self.output.accelX = aX;
+    self.output.accelY = aY;
+    self.output.accelZ = aZ;
+
+    if(self.output.accelXMax < aX) then
+        self.output.accelXMax = aX;
+    end
+    if(self.output.accelYMax < aY) then
+        self.output.accelYMax = aY;
+    end
+    if(self.output.accelZMax < aZ) then
+        self.output.accelZMax = aZ;
+    end
+    if(self.output.accelXMin > aX) then
+        self.output.accelXMin = aX;
+    end
+    if(self.output.accelYMin > aY) then
+        self.output.accelYMin = aY;
+    end
+    if(self.output.accelZMin > aZ) then
+        self.output.accelZMin = aZ;
+    end
 end
 
 --------------------------------------------------------------------------------
@@ -274,7 +325,7 @@ function travelingCompanionDistanceMeter:showTheUI()
     end
 
     ImGui.SetNextWindowPos(50, 50, ImGuiCond.FirstUseEver);
-    ImGui.SetNextWindowSize(380*scale, 125*scale, ImGuiCond.Appearing);
+    ImGui.SetNextWindowSize(380*scale, 185*scale, ImGuiCond.Appearing);
     ImGui.PushStyleColor(ImGuiCol.Text, 0xFF00DDFF); -- 0xAABBGGRR
     ImGui.PushStyleColor(ImGuiCol.WindowBg, 0x99000000);
     ImGui.PushStyleColor(ImGuiCol.Border, 0x00000000);        
@@ -285,7 +336,10 @@ function travelingCompanionDistanceMeter:showTheUI()
             "%.5f", self.output.distanceTraveled) .. " m\n"
             .. string.format("Speed: % 5.0f km/h; top=%.2f km/h\n", self.output.displayedSpeed, self.output.topSpeed)
             .. string.format("x=%.2f y=%.2f z=%.2f t=%.3f\n", self.lastPos.x, self.lastPos.y, self.lastPos.z, self.lastPos.timeTick)
-            .. string.format("accel= % 4.2f G (max=%.2f G)", self.output.displayedAccel, self.output.accelMax)
+            .. string.format("accel= % 4.2f G (max=%.2f G)\n", self.output.displayedAccel, self.output.accelMax)
+            .. string.format("  x= % 4.2f G (min=%.2f G, max=%.2f G)\n", self.output.accelX, self.output.accelXMin, self.output.accelXMax)
+            .. string.format("  y= % 4.2f G (min=%.2f G, max=%.2f G)\n", self.output.accelY, self.output.accelYMin, self.output.accelYMax)
+            .. string.format("  z= % 4.2f G (min=%.2f G, max=%.2f G)\n", self.output.accelZ, self.output.accelZMin, self.output.accelZMax)
         );
         ImGui.SetWindowFontScale(1.0);
     end
@@ -338,6 +392,15 @@ function travelingCompanionDistanceMeter:clear(alsoResetDisplayedState)
     self.output.displayedAccel = 1;
     self.output.displayedAccelTime = -1;
     self.output.accelMax = 1;
+    self.output.accelX = 0;
+    self.output.accelY = 0;
+    self.output.accelZ = 0;
+    self.output.accelXMax = 0;
+    self.output.accelYMax = 0;
+    self.output.accelZMax = 0;
+    self.output.accelXMin = 0;
+    self.output.accelYMin = 0;
+    self.output.accelZMin = 0;
 
     self.state.frameCounter = 0;
     if(alsoResetDisplayedState) then
