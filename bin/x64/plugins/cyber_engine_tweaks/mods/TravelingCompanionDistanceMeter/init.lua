@@ -69,10 +69,6 @@ function travelingCompanionDistanceMeter:new()
         -- Literally the frame counter, as long as the notInGame func is false
         self.state.frameCounter = self.state.frameCounter + 1;
 
-        if(self.state.frameCounter % 79 == 0) then
-            self:refreshUIScale();
-        end
-
         -- Do the computation only on every few frames in
         if(self.state.frameCounter % 2 ~= 0) then
             return;
