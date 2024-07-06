@@ -110,43 +110,46 @@ function travelingCompanionDistanceMeter:new()
                     -------------------------------------------
                     -- Manage the speed points and derived data
                     -------------------------------------------
-                    self.speedPoints.speedPos = self.speedPoints.speedPos + 1;
-                    if(self.speedPoints.speedPos == self.speedPoints.speedSize + 1) then
-                        self.speedPoints.speedPos = 1;
+                    local sp = self.speedPoints;
+                    sp.speedPos = sp.speedPos + 1;
+                    if(sp.speedPos == sp.speedSize + 1) then
+                        sp.speedPos = 1;
 
                         -- Once the speeds have become ready, compute the sum of all lengths
                         -- But, do this only if the speeds aren't marked as ready yet
-                        if(not self.speedPoints.speedReady) then 
-                            self.speedPoints.speedReady = true;
-                            self.speedPoints.totalLength = 0;
-                            for i=1,self.speedPoints.speedSize do
-                                self.speedPoints.totalLength = self.speedPoints.totalLength + self.speedPoints.speedVals[i][5];
+                        if(not sp.speedReady) then 
+                            sp.speedReady = true;
+                            sp.totalLength = 0;
+                            for i=1,sp.speedSize do
+                                sp.totalLength = sp.totalLength + sp.speedVals[i][5];
                             end
                         end
                     end
 
+                    local speedPos = sp.speedPos;
+
                     -- Maintain the .totalTime
-                    local theOldestPos = self.speedPoints.speedPos + 1;
-                    if theOldestPos == self.speedPoints.speedSize + 1 then
+                    local theOldestPos = speedPos + 1;
+                    if theOldestPos == sp.speedSize + 1 then
                         theOldestPos = 1;
                     end
-                    self.speedPoints.totalTime = currTime - self.speedPoints.speedVals[theOldestPos][4];
+                    sp.totalTime = currTime - sp.speedVals[theOldestPos][4];
 
                     -- Maintain the .totalLength
                     -- Remove the length from the point that will be overwritten
                     -- and add length of the point that will be added in its place
-                    self.speedPoints.totalLength =
-                        self.speedPoints.totalLength
-                        - self.speedPoints.speedVals[self.speedPoints.speedPos][5]
+                    sp.totalLength =
+                        sp.totalLength
+                        - sp.speedVals[speedPos][5]
                         + length
                     ;
 
                     -- Write the new point
-                    self.speedPoints.speedVals[self.speedPoints.speedPos][1] = currPos.x;
-                    self.speedPoints.speedVals[self.speedPoints.speedPos][2] = currPos.y;
-                    self.speedPoints.speedVals[self.speedPoints.speedPos][3] = currPos.z;
-                    self.speedPoints.speedVals[self.speedPoints.speedPos][4] = currTime;
-                    self.speedPoints.speedVals[self.speedPoints.speedPos][5] = length;
+                    sp.speedVals[speedPos][1] = currPos.x;
+                    sp.speedVals[speedPos][2] = currPos.y;
+                    sp.speedVals[speedPos][3] = currPos.z;
+                    sp.speedVals[speedPos][4] = currTime;
+                    sp.speedVals[speedPos][5] = length;
                 end
 
                 -- Compute the values derived from speed points if all of them are ready
@@ -168,25 +171,28 @@ function travelingCompanionDistanceMeter:new()
                     -- Update acceleration's internal and displayed values
                     -- ... if TCDM is displayed.
                     if(self:isDisplayed()) then
+                        local sp = self.speedPoints;
+                        local speedPos = sp.speedPos;
+
                         -- The index of the oldest data point
-                        local v1pos = self.speedPoints.speedPos+1;
-                        if v1pos > self.speedPoints.speedSize then
+                        local v1pos = speedPos+1;
+                        if v1pos > sp.speedSize then
                             v1pos = 1;
                         end
 
                         -- The index of the newest data point
-                        local v2pos = self.speedPoints.speedPos;
+                        local v2pos = speedPos;
 
                         -- The time difference to fulfill $vvec
-                        local tdiff = self.speedPoints.speedVals[v2pos][4] - self.speedPoints.speedVals[v1pos][4];
+                        local tdiff = sp.speedVals[v2pos][4] - sp.speedVals[v1pos][4];
 
                         -- Record the movement vector and $tdiff for later use
-                        self.speedPoints.speedVals[self.speedPoints.speedPos][7] = {
+                        sp.speedVals[speedPos][7] = {
                             -- The space vector from the oldest to the newest data point
                             {
-                                self.speedPoints.speedVals[v2pos][1] - self.speedPoints.speedVals[v1pos][1],
-                                self.speedPoints.speedVals[v2pos][2] - self.speedPoints.speedVals[v1pos][2],
-                                self.speedPoints.speedVals[v2pos][3] - self.speedPoints.speedVals[v1pos][3],
+                                sp.speedVals[v2pos][1] - sp.speedVals[v1pos][1],
+                                sp.speedVals[v2pos][2] - sp.speedVals[v1pos][2],
+                                sp.speedVals[v2pos][3] - sp.speedVals[v1pos][3],
                             },
                             tdiff,
                             {0, 0, 0}, -- Slot for acceleration vector, in m/s^2
@@ -197,36 +203,38 @@ function travelingCompanionDistanceMeter:new()
                         -- of acceleration values can begin. To check this, $tdiff of the
                         -- oldest point in the dataset is used. It ought to be greater
                         -- than zero.
-                        if(self.speedPoints.speedVals[v1pos][7][2] > 0) then
+                        if(sp.speedVals[v1pos][7][2] > 0) then
+                            local sgp = self.constants.std_gravity_pos;
+
                             -- The oldest data point (speed diff vs time)
-                            local vvec1 = self.speedPoints.speedVals[v1pos][7][1];
-                            local t1 = self.speedPoints.speedVals[v1pos][7][2];
+                            local vvec1 = sp.speedVals[v1pos][7][1];
+                            local t1 = sp.speedVals[v1pos][7][2];
 
                             -- The newest data point (speed diff vs time)
-                            local vvec2 = self.speedPoints.speedVals[v2pos][7][1];
-                            local t2 = self.speedPoints.speedVals[v2pos][7][2];
+                            local vvec2 = sp.speedVals[v2pos][7][1];
+                            local t2 = sp.speedVals[v2pos][7][2];
 
                             -- The time difference between the two said data points
-                            local tdiff = self.speedPoints.speedVals[v2pos][4] - self.speedPoints.speedVals[v1pos][4];
+                            local tdiff = sp.speedVals[v2pos][4] - sp.speedVals[v1pos][4];
 
                             -- The acceleration vector,
                             -- i.e. the speed difference between the two data points, per time
                             local vaccel = {
                                 (vvec2[1]/t2 - vvec1[1]/t1) / tdiff,
                                 (vvec2[2]/t2 - vvec1[2]/t1) / tdiff,
-                                (vvec2[3]/t2 - vvec1[3]/t1) / tdiff + self.constants.std_gravity_pos,
+                                (vvec2[3]/t2 - vvec1[3]/t1) / tdiff + sgp,
                             };
 
                             -- Write the acceleration vector and its intensity to the current data point
-                            self.speedPoints.speedVals[v2pos][7][3] = vaccel;
-                            self.speedPoints.speedVals[v2pos][7][4] = math.sqrt(vaccel[1]^2 + vaccel[2]^2 + vaccel[3]^2);
+                            sp.speedVals[v2pos][7][3] = vaccel;
+                            sp.speedVals[v2pos][7][4] = math.sqrt(vaccel[1]^2 + vaccel[2]^2 + vaccel[3]^2);
 
                             -- Write the acceleration vector and intensity (in Gs)
                             -- into the self.output section
-                            self.output.accel[1] = vaccel[1] / self.constants.std_gravity_pos;
-                            self.output.accel[2] = vaccel[2] / self.constants.std_gravity_pos;
-                            self.output.accel[3] = vaccel[3] / self.constants.std_gravity_pos;
-                            self.output.accelint = self.speedPoints.speedVals[v2pos][7][4] / self.constants.std_gravity_pos;
+                            self.output.accel[1] = vaccel[1] / sgp;
+                            self.output.accel[2] = vaccel[2] / sgp;
+                            self.output.accel[3] = vaccel[3] / sgp;
+                            self.output.accelint = sp.speedVals[v2pos][7][4] / sgp;
 
                             -- Update the displayed acceleration at regular intervals
                             if((self.output.displayedAccelTime == -1)
@@ -279,31 +287,33 @@ function travelingCompanionDistanceMeter:computeAccelComponents(vaccel)
     playerY.z = -playerY.z;
     local playerZ = currTr:GetUp();
 
-    local aX = (playerX.x * vaccel[1] + playerX.y * vaccel[2] + playerX.z * vaccel[3]) / self.constants.std_gravity_pos;
-    local aY = (playerY.x * vaccel[1] + playerY.y * vaccel[2] + playerY.z * vaccel[3]) / self.constants.std_gravity_pos;
-    local aZ = (playerZ.x * vaccel[1] + playerZ.y * vaccel[2] + playerZ.z * vaccel[3]) / self.constants.std_gravity_pos;
+    local sgp = self.constants.std_gravity_pos;
+    local aX = (playerX.x * vaccel[1] + playerX.y * vaccel[2] + playerX.z * vaccel[3]) / sgp;
+    local aY = (playerY.x * vaccel[1] + playerY.y * vaccel[2] + playerY.z * vaccel[3]) / sgp;
+    local aZ = (playerZ.x * vaccel[1] + playerZ.y * vaccel[2] + playerZ.z * vaccel[3]) / sgp;
 
-    self.output.accelX = aX;
-    self.output.accelY = aY;
-    self.output.accelZ = aZ;
+    local so = self.output;
+    so.accelX = aX;
+    so.accelY = aY;
+    so.accelZ = aZ;
 
-    if(self.output.accelXMax < aX) then
-        self.output.accelXMax = aX;
+    if(so.accelXMax < aX) then
+        so.accelXMax = aX;
     end
-    if(self.output.accelYMax < aY) then
-        self.output.accelYMax = aY;
+    if(so.accelYMax < aY) then
+        so.accelYMax = aY;
     end
-    if(self.output.accelZMax < aZ) then
-        self.output.accelZMax = aZ;
+    if(so.accelZMax < aZ) then
+        so.accelZMax = aZ;
     end
-    if(self.output.accelXMin > aX) then
-        self.output.accelXMin = aX;
+    if(so.accelXMin > aX) then
+        so.accelXMin = aX;
     end
-    if(self.output.accelYMin > aY) then
-        self.output.accelYMin = aY;
+    if(so.accelYMin > aY) then
+        so.accelYMin = aY;
     end
-    if(self.output.accelZMin > aZ) then
-        self.output.accelZMin = aZ;
+    if(so.accelZMin > aZ) then
+        so.accelZMin = aZ;
     end
 end
 
@@ -330,16 +340,18 @@ function travelingCompanionDistanceMeter:showTheUI()
     ImGui.PushStyleColor(ImGuiCol.WindowBg, 0x99000000);
     ImGui.PushStyleColor(ImGuiCol.Border, 0x00000000);        
 	
+    local so = self.output;
+    local slp = self.lastPos;
     if ImGui.Begin("TCDM") then
         ImGui.SetWindowFontScale(1.15);
         ImGui.Text("Traveled: " .. string.format(
-            "%.5f", self.output.distanceTraveled) .. " m\n"
-            .. string.format("Speed: % 5.0f km/h; top=%.2f km/h\n", self.output.displayedSpeed, self.output.topSpeed)
-            .. string.format("x=%.2f y=%.2f z=%.2f t=%.3f\n", self.lastPos.x, self.lastPos.y, self.lastPos.z, self.lastPos.timeTick)
-            .. string.format("accel= % 4.2f G (max=%.2f G)\n", self.output.displayedAccel, self.output.accelMax)
-            .. string.format("  x= % 4.2f G (min=%.2f G, max=%.2f G)\n", self.output.accelX, self.output.accelXMin, self.output.accelXMax)
-            .. string.format("  y= % 4.2f G (min=%.2f G, max=%.2f G)\n", self.output.accelY, self.output.accelYMin, self.output.accelYMax)
-            .. string.format("  z= % 4.2f G (min=%.2f G, max=%.2f G)\n", self.output.accelZ, self.output.accelZMin, self.output.accelZMax)
+            "%.5f", so.distanceTraveled) .. " m\n"
+            .. string.format("Speed: % 5.0f km/h; top=%.2f km/h\n", so.displayedSpeed, so.topSpeed)
+            .. string.format("x=%.2f y=%.2f z=%.2f t=%.3f\n", slp.x, slp.y, slp.z, slp.timeTick)
+            .. string.format("accel= % 4.2f G (max=%.2f G)\n", so.displayedAccel, so.accelMax)
+            .. string.format("  x= % 4.2f G (min=%.2f G, max=%.2f G)\n", so.accelX, so.accelXMin, so.accelXMax)
+            .. string.format("  y= % 4.2f G (min=%.2f G, max=%.2f G)\n", so.accelY, so.accelYMin, so.accelYMax)
+            .. string.format("  z= % 4.2f G (min=%.2f G, max=%.2f G)\n", so.accelZ, so.accelZMin, so.accelZMax)
         );
         ImGui.SetWindowFontScale(1.0);
     end
