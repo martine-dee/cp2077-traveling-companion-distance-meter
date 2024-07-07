@@ -249,6 +249,7 @@ function travelingCompanionDistanceMeter:new()
                             -- Maintain the value of maximum recorded acceleration
                             if(self.output.accelint > self.output.accelMax) then
                                 self.output.accelMax = self.output.accelint;
+                                self:computeAccelComponents(vaccel);
                             end
                         end
                     end
