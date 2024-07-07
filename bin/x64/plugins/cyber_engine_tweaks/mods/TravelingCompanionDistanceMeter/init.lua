@@ -35,6 +35,7 @@ travelingCompanionDistanceMeter = {
         displayedAccelTime, -- The last time displayed acceleration was updated
         accelMax,           -- The maximal recorded acceleration intensity (Gs)
 
+        -- Breakdown of the acceleration vector into player's XYZ
         accelX,
         accelY,
         accelZ,
@@ -279,7 +280,9 @@ function travelingCompanionDistanceMeter:new()
     return self;
 end
 
+-- Computation of acceleration breakdown to player's XYZ
 function travelingCompanionDistanceMeter:computeAccelComponents(vaccel)
+    -- Get the player's perspective
     local currTr = Game.GetPlayer():GetWorldTransform();
     local playerX = currTr:GetForward();
     local playerY = currTr:GetRight();
@@ -288,16 +291,19 @@ function travelingCompanionDistanceMeter:computeAccelComponents(vaccel)
     playerY.z = -playerY.z;
     local playerZ = currTr:GetUp();
 
+    -- Project the acceleration vector onto player's XYZ
     local sgp = self.constants.std_gravity_pos;
     local aX = (playerX.x * vaccel[1] + playerX.y * vaccel[2] + playerX.z * vaccel[3]) / sgp;
     local aY = (playerY.x * vaccel[1] + playerY.y * vaccel[2] + playerY.z * vaccel[3]) / sgp;
     local aZ = (playerZ.x * vaccel[1] + playerZ.y * vaccel[2] + playerZ.z * vaccel[3]) / sgp;
 
+    -- Write the results into slots for displaying int TCDM
     local so = self.output;
     so.accelX = aX;
     so.accelY = aY;
     so.accelZ = aZ;
 
+    -- Maintain the min and max values (also displayed)
     if(so.accelXMax < aX) then
         so.accelXMax = aX;
     end
@@ -322,6 +328,7 @@ end
 -- UI --------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
+-- Determines the UI scale based on player's screen resolution
 function travelingCompanionDistanceMeter:refreshUIScale()
     local displayWidth, displayHeight = GetDisplayResolution();
     self.state.uiScale = displayHeight / 1080.0;
@@ -431,6 +438,7 @@ function travelingCompanionDistanceMeter:clear(alsoResetDisplayedState)
     self:resetSpeedPoints();
 end
 
+-- Resets the recorded speed data. This usually happens on full stop.
 function travelingCompanionDistanceMeter:resetSpeedPoints()
     self.speedPoints.speedPos = 0;
     self.speedPoints.speedSize = 25;
