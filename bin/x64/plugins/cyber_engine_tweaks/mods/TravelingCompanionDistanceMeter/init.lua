@@ -352,8 +352,8 @@ function travelingCompanionDistanceMeter:showTheUI()
     local so = self.output;
     local slp = self.lastPos;
     local guitext_height = 105;
-    local guitext = "Traveled: " .. string.format(
-        "%.5f", so.distanceTraveled) .. " m\n"
+    local guitext = "Traveled: "
+        .. string.format("%.5f", so.distanceTraveled) .. " m\n"
         .. string.format("Speed: % 5.0f km/h; top=%.2f km/h\n", so.displayedSpeed, so.topSpeed)
         .. string.format("x=%.2f y=%.2f z=%.2f t=%.3f\n", slp.x, slp.y, slp.z, slp.timeTick);
     
