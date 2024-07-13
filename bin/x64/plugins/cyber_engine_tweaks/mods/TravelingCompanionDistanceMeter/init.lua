@@ -50,11 +50,44 @@ travelingCompanionDistanceMeter = {
 	},
 };
 
+tcdm = nil;
+
 -- The c-tor
 function travelingCompanionDistanceMeter:new()
+
+    tcdm = self;
+
     -- Initialize the travelingCompanionDistanceMeter
     registerForEvent('onInit', function()
         self:clear(true);
+
+        if travelingCompanionDistanceMeterConfig.overrideVehicleSpeedometer then
+            if Override ~= nil then
+                -- The speed reading in the 3rd person cam
+                if(travelingCompanionDistanceMeterConfig.convertSpeedometerToMPH) then
+                    Override("hudCarController", "OnSpeedValueChanged", function (zelf, speedValue)
+                        inkTextRef.SetText(zelf.SpeedValue, string.format("%.0f", tcdm.output.displayedSpeed * 0.621371192) .. " mph" );
+                    end)
+
+                    -- The speedometer inside the vehicle
+                    Override("speedometerLogicController", "OnSpeedValueChanged", function (zelf, speedValue)
+                        inkTextRef.SetText(zelf.speedTextWidget, string.format("%.0f", tcdm.output.displayedSpeed * 0.621371192) .. " mph");
+                    end)
+                else
+                    -- The speed reading in the 3rd person cam
+                    Override("hudCarController", "OnSpeedValueChanged", function (zelf, speedValue)
+                        inkTextRef.SetText(zelf.SpeedValue, string.format("%.0f", tcdm.output.displayedSpeed) .. " km/h");
+                    end)
+
+                    -- The speedometer inside the vehicle
+                    Override("speedometerLogicController", "OnSpeedValueChanged", function (zelf, speedValue)
+                        inkTextRef.SetText(zelf.speedTextWidget, string.format("%.0f", tcdm.output.displayedSpeed) .. " km/h");
+                    end)
+                end
+            else
+                print("TCDM: Can't override the speedometer. Do you have Codeware? Did it load?");
+            end
+        end
     end)
 
     -- Reset the travelingCompanionDistanceMeter
@@ -106,8 +139,9 @@ function travelingCompanionDistanceMeter:new()
                 -- Update distance traveled
                 self.output.distanceTraveled = self.output.distanceTraveled + length;
 
-                -- Only compute the speed-related info if the tool is displayed
-                if(self:isDisplayed()) then
+                -- Only compute the speed-related info if the tool is displayed, or
+                -- if TCDM is overriding the vehicle's speedometer
+                if(self:isDisplayed() or travelingCompanionDistanceMeterConfig.overrideVehicleSpeedometer) then
                     local timeDiff = currTime - self.lastPos.timeTick;
 
                     -------------------------------------------
