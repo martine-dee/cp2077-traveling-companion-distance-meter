@@ -23,7 +23,7 @@ travelingCompanionDistanceMeter = {
     },
     constants = {
         std_gravity_pos = 9.80665, -- m/s^2; inverted sign
-        display_update_interval = 0.15, -- seconds
+        display_update_interval = 0.10, -- seconds
     },
 	output = {
 		distanceTraveled,
