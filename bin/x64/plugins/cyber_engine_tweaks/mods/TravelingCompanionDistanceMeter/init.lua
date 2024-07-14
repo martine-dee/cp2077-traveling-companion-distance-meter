@@ -1,3 +1,5 @@
+require "config.lua";
+
 -- The data structure
 travelingCompanionDistanceMeter = {
     lastPos = {
@@ -21,7 +23,7 @@ travelingCompanionDistanceMeter = {
     },
     constants = {
         std_gravity_pos = 9.80665, -- m/s^2; inverted sign
-        display_update_interval = 0.15, -- seconds
+        display_update_interval = 0.10, -- seconds
     },
 	output = {
 		distanceTraveled,
@@ -48,11 +50,44 @@ travelingCompanionDistanceMeter = {
 	},
 };
 
+tcdm = nil;
+
 -- The c-tor
 function travelingCompanionDistanceMeter:new()
+
+    tcdm = self;
+
     -- Initialize the travelingCompanionDistanceMeter
     registerForEvent('onInit', function()
         self:clear(true);
+
+        if travelingCompanionDistanceMeterConfig.overrideVehicleSpeedometer then
+            if Override ~= nil then
+                -- The speed reading in the 3rd person cam
+                if(travelingCompanionDistanceMeterConfig.convertSpeedometerToMPH) then
+                    Override("hudCarController", "OnSpeedValueChanged", function (zelf, speedValue)
+                        inkTextRef.SetText(zelf.SpeedValue, string.format("%.0f", tcdm.output.displayedSpeed * 0.621371192) .. " mph" );
+                    end)
+
+                    -- The speedometer inside the vehicle
+                    Override("speedometerLogicController", "OnSpeedValueChanged", function (zelf, speedValue)
+                        inkTextRef.SetText(zelf.speedTextWidget, string.format("%.0f", tcdm.output.displayedSpeed * 0.621371192) .. " mph");
+                    end)
+                else
+                    -- The speed reading in the 3rd person cam
+                    Override("hudCarController", "OnSpeedValueChanged", function (zelf, speedValue)
+                        inkTextRef.SetText(zelf.SpeedValue, string.format("%.0f", tcdm.output.displayedSpeed) .. " km/h");
+                    end)
+
+                    -- The speedometer inside the vehicle
+                    Override("speedometerLogicController", "OnSpeedValueChanged", function (zelf, speedValue)
+                        inkTextRef.SetText(zelf.speedTextWidget, string.format("%.0f", tcdm.output.displayedSpeed) .. " km/h");
+                    end)
+                end
+            else
+                print("TCDM: Can't override the speedometer. Do you have Codeware? Did it load?");
+            end
+        end
     end)
 
     -- Reset the travelingCompanionDistanceMeter
@@ -104,8 +139,9 @@ function travelingCompanionDistanceMeter:new()
                 -- Update distance traveled
                 self.output.distanceTraveled = self.output.distanceTraveled + length;
 
-                -- Only compute the speed-related info if the tool is displayed
-                if(self:isDisplayed()) then
+                -- Only compute the speed-related info if the tool is displayed, or
+                -- if TCDM is overriding the vehicle's speedometer
+                if(self:isDisplayed() or travelingCompanionDistanceMeterConfig.overrideVehicleSpeedometer) then
                     local timeDiff = currTime - self.lastPos.timeTick;
 
                     -------------------------------------------
@@ -204,7 +240,7 @@ function travelingCompanionDistanceMeter:new()
                         -- of acceleration values can begin. To check this, $tdiff of the
                         -- oldest point in the dataset is used. It ought to be greater
                         -- than zero.
-                        if(sp.speedVals[v1pos][7][2] > 0) then
+                        if(travelingCompanionDistanceMeterConfig.showGForce and sp.speedVals[v1pos][7][2] > 0) then
                             local sgp = self.constants.std_gravity_pos;
 
                             -- The oldest data point (speed diff vs time)
@@ -282,6 +318,10 @@ end
 
 -- Computation of acceleration breakdown to player's XYZ
 function travelingCompanionDistanceMeter:computeAccelComponents(vaccel)
+    if not travelingCompanionDistanceMeterConfig.showGComponents then
+        return;
+    end
+
     -- Get the player's perspective
     local currTr = Game.GetPlayer():GetWorldTransform();
     local playerX = currTr:GetForward();
@@ -342,25 +382,37 @@ function travelingCompanionDistanceMeter:showTheUI()
         return; -- Do not draw if we don't know the scale
     end
 
+    -- preparing
+    local so = self.output;
+    local slp = self.lastPos;
+    local guitext_height = 105;
+    local guitext = "Traveled: "
+        .. string.format("%.5f", so.distanceTraveled) .. " m\n"
+        .. string.format("Speed: % 5.0f km/h; top=%.2f km/h\n", so.displayedSpeed, so.topSpeed)
+        .. string.format("x=%.2f y=%.2f z=%.2f t=%.3f\n", slp.x, slp.y, slp.z, slp.timeTick);
+    
+    if(travelingCompanionDistanceMeterConfig.showGForce) then
+        guitext_height = guitext_height + 20;
+        guitext = guitext .. string.format("accel= % 4.2f G (max=%.2f G)", so.displayedAccel, so.accelMax);
+
+        if(travelingCompanionDistanceMeterConfig.showGComponents) then
+            guitext_height = guitext_height + 60;
+            guitext = guitext
+                .. string.format("\n  x= % 4.2f G (min=%.2f G, max=%.2f G)\n", so.accelX, so.accelXMin, so.accelXMax)
+                .. string.format("  y= % 4.2f G (min=%.2f G, max=%.2f G)\n", so.accelY, so.accelYMin, so.accelYMax)
+                .. string.format("  z= % 4.2f G (min=%.2f G, max=%.2f G)\n", so.accelZ, so.accelZMin, so.accelZMax);
+        end
+    end
+
+    -- drawing
     ImGui.SetNextWindowPos(50, 50, ImGuiCond.FirstUseEver);
-    ImGui.SetNextWindowSize(380*scale, 185*scale, ImGuiCond.Appearing);
+    ImGui.SetNextWindowSize(380*scale, guitext_height *scale, ImGuiCond.Appearing);
     ImGui.PushStyleColor(ImGuiCol.Text, 0xFF00DDFF); -- 0xAABBGGRR
     ImGui.PushStyleColor(ImGuiCol.WindowBg, 0x99000000);
     ImGui.PushStyleColor(ImGuiCol.Border, 0x00000000);        
-	
-    local so = self.output;
-    local slp = self.lastPos;
     if ImGui.Begin("TCDM") then
         ImGui.SetWindowFontScale(1.15);
-        ImGui.Text("Traveled: " .. string.format(
-            "%.5f", so.distanceTraveled) .. " m\n"
-            .. string.format("Speed: % 5.0f km/h; top=%.2f km/h\n", so.displayedSpeed, so.topSpeed)
-            .. string.format("x=%.2f y=%.2f z=%.2f t=%.3f\n", slp.x, slp.y, slp.z, slp.timeTick)
-            .. string.format("accel= % 4.2f G (max=%.2f G)\n", so.displayedAccel, so.accelMax)
-            .. string.format("  x= % 4.2f G (min=%.2f G, max=%.2f G)\n", so.accelX, so.accelXMin, so.accelXMax)
-            .. string.format("  y= % 4.2f G (min=%.2f G, max=%.2f G)\n", so.accelY, so.accelYMin, so.accelYMax)
-            .. string.format("  z= % 4.2f G (min=%.2f G, max=%.2f G)\n", so.accelZ, so.accelZMin, so.accelZMax)
-        );
+        ImGui.Text(guitext);
         ImGui.SetWindowFontScale(1.0);
     end
 	
@@ -441,7 +493,7 @@ end
 -- Resets the recorded speed data. This usually happens on full stop.
 function travelingCompanionDistanceMeter:resetSpeedPoints()
     self.speedPoints.speedPos = 0;
-    self.speedPoints.speedSize = 25;
+    self.speedPoints.speedSize = travelingCompanionDistanceMeterConfig.dataSamplingPointsCount;
     self.speedPoints.speedVals = {};
     self.speedPoints.totalLength = 0;
     self.speedPoints.totalTime = 0;
