@@ -66,22 +66,22 @@ function travelingCompanionDistanceMeter:new()
                 -- The speed reading in the 3rd person cam
                 if(travelingCompanionDistanceMeterConfig.convertSpeedometerToMPH) then
                     Override("hudCarController", "OnSpeedValueChanged", function (zelf, speedValue)
-                        inkTextRef.SetText(zelf.SpeedValue, string.format("%.0f", tcdm.output.displayedSpeed * 0.621371192) .. " mph" );
+                        inkTextRef.SetText(zelf.SpeedValue, string.format("%.0f", tcdm.output.speed * 0.621371192) .. " mph" );
                     end)
 
                     -- The speedometer inside the vehicle
                     Override("speedometerLogicController", "OnSpeedValueChanged", function (zelf, speedValue)
-                        inkTextRef.SetText(zelf.speedTextWidget, string.format("%.0f", tcdm.output.displayedSpeed * 0.621371192) .. " mph");
+                        inkTextRef.SetText(zelf.speedTextWidget, string.format("%.0f", tcdm.output.speed * 0.621371192) .. " mph");
                     end)
                 else
                     -- The speed reading in the 3rd person cam
                     Override("hudCarController", "OnSpeedValueChanged", function (zelf, speedValue)
-                        inkTextRef.SetText(zelf.SpeedValue, string.format("%.0f", tcdm.output.displayedSpeed) .. " km/h");
+                        inkTextRef.SetText(zelf.SpeedValue, string.format("%.0f", tcdm.output.speed) .. " km/h");
                     end)
 
                     -- The speedometer inside the vehicle
                     Override("speedometerLogicController", "OnSpeedValueChanged", function (zelf, speedValue)
-                        inkTextRef.SetText(zelf.speedTextWidget, string.format("%.0f", tcdm.output.displayedSpeed) .. " km/h");
+                        inkTextRef.SetText(zelf.speedTextWidget, string.format("%.0f", tcdm.output.speed) .. " km/h");
                     end)
                 end
             else
